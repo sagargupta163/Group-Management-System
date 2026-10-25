@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Group Manager</title>
+<style>
+:root{--bg:#eef2f6;--surface:#fff;--ink:#16202b;--muted:#5d6b7a;--line:#d5dde6;--accent:#0f6b73;--accent-ink:#fff;--on:#1f8a5b;--off:#8a97a5;--danger:#b3372f;--soft:#e3f0f1;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10171e;--surface:#18222c;--ink:#e8eef4;--muted:#94a3b3;--line:#2b3946;--accent:#4fb8c2;--accent-ink:#06242a;--on:#4cc38a;--off:#78879a;--danger:#ef7b73;--soft:#1b3238}}
+:root[data-theme="dark"]{--bg:#10171e;--surface:#18222c;--ink:#e8eef4;--muted:#94a3b3;--line:#2b3946;--accent:#4fb8c2;--accent-ink:#06242a;--on:#4cc38a;--off:#78879a;--danger:#ef7b73;--soft:#1b3238}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:1.9rem;margin:0 0 4px;letter-spacing:-.02em}
+.sub{color:var(--muted);margin:0 0 22px}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 16px;min-width:110px}
+.stat b{display:block;font-size:1.5rem;line-height:1.2}
+.stat span{color:var(--muted);font-size:.85rem}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:18px}
+.panel h2{font-size:1.05rem;margin:0 0 12px}
+form{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+label{display:flex;flex-direction:column;gap:4px;font-size:.88rem;color:var(--muted)}
+input[type=text],select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;min-width:0}
+input[type=text]{width:260px;max-width:100%}
+.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink);padding-bottom:10px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 14px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.del{color:var(--danger)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.err{color:var(--danger);font-size:.88rem;min-height:1.3em;margin:8px 0 0}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.tools input{flex:1;min-width:160px}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:680px}
+th,td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--line);font-size:.93rem;vertical-align:middle}
+th{color:var(--muted);font-weight:600;font-size:.84rem}
+td.id{color:var(--muted);width:60px}
+td.d{color:var(--muted);white-space:nowrap}
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 11px 3px 9px;font-size:.84rem;border:1px solid var(--line);background:var(--bg);cursor:pointer}
+.badge i{width:8px;height:8px;border-radius:50%;background:var(--off)}
+.badge.on i{background:var(--on)}
+.badge.on{color:var(--on)}
+.act{display:flex;gap:6px}
+.empty{padding:26px;text-align:center;color:var(--muted)}
+.schema th,.schema td{font-size:.88rem}
+code{background:var(--soft);padding:1px 6px;border-radius:5px;font-size:.85rem}
+@media (prefers-reduced-motion:no-preference){tr.flash{animation:fl 1.1s}@keyframes fl{from{background:var(--soft)}to{background:transparent}}}
+</style>
+</head>
+<body>
+<main>
+<h1>Group Manager</h1>
+<p class="sub">Create, rename, activate and delete groups. Data is stored in the browser on this device.</p>
+
+<div class="stats" id="stats"></div>
+
+<section class="panel">
+<h2 id="formTitle">Add a group</h2>
+<form id="f" novalidate>
+<label>group_name (unique, max 255)
+<input type="text" id="name" maxlength="255" autocomplete="off" placeholder="e.g. Marketing Team" required></label>
+<label class="chk"><input type="checkbox" id="active" checked> is_active</label>
+<button class="primary" type="submit" id="save">Add group</button>
+<button type="button" id="cancel" hidden>Cancel edit</button>
+</form>
+<p class="err" id="err" role="alert"></p>
+</section>
+
+<section class="panel">
+<div class="tools">
+<input type="text" id="q" placeholder="Search by group name" aria-label="Search groups">
+<select id="flt" aria-label="Filter by status"><option value="all">All groups</option><option value="1">Active only</option><option value="0">Inactive only</option></select>
+</div>
+<div class="wrap"><table>
+<thead><tr><th>group_id</th><th>group_name</th><th>is_active</th><th>created_at</th><th>updated_at</th><th>Actions</th></tr></thead>
+<tbody id="rows"></tbody>
+</table></div>
+<div class="empty" id="empty" hidden>No groups match. Add a group above to get started.</div>
+</section>
+
+<section class="panel">
+<h2>Table design: Group</h2>
+<div class="wrap"><table class="schema">
+<thead><tr><th>Field</th><th>Datatype</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>group_id</code></td><td>int (PK)</td><td>Stores the unique id of the group. Auto-numbered here.</td></tr>
+<tr><td><code>group_name</code></td><td>varchar(255)</td><td>Stores the unique group name.</td></tr>
+<tr><td><code>is_active</code></td><td>boolean</td><td>True if the group is active, False if inactive.</td></tr>
+<tr><td><code>created_at</code></td><td>datetime</td><td>Date and time the group was first created.</td></tr>
+<tr><td><code>updated_at</code></td><td>datetime</td><td>Date and time the group was last updated.</td></tr>
+</tbody></table></div>
+</section>
+</main>
+
+<script>
+(function(){
+var KEY="group_table_v1", groups=[], nextId=1, editId=null;
+var $=function(i){return document.getElementById(i)};
+
+function load(){
+  try{var r=localStorage.getItem(KEY); if(r){var o=JSON.parse(r); groups=o.groups||[]; nextId=o.nextId||1; return;}}catch(e){}
+  var t=Date.now();
+  groups=[{group_id:1,group_name:"Admins",is_active:true,created_at:t,updated_at:t},
+          {group_id:2,group_name:"Students",is_active:true,created_at:t,updated_at:t},
+          {group_id:3,group_name:"Archived Members",is_active:false,created_at:t,updated_at:t}];
+  nextId=4;
+}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify({groups:groups,nextId:nextId}));}catch(e){}}
+function fmt(t){var d=new Date(t),p=function(n){return String(n).padStart(2,"0")};
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());}
+function esc(s){return s.replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+var flashId=null;
+function render(){
+  var q=$("q").value.trim().toLowerCase(), f=$("flt").value;
+  var list=groups.filter(function(g){
+    return (!q||g.group_name.toLowerCase().indexOf(q)>-1)&&(f==="all"||(f==="1")===g.is_active);
+  });
+  $("rows").innerHTML=list.map(function(g){
+    return '<tr'+(g.group_id===flashId?' class="flash"':'')+'><td class="id">'+g.group_id+'</td><td>'+esc(g.group_name)+'</td>'
+    +'<td><button class="badge '+(g.is_active?'on':'')+'" data-a="toggle" data-id="'+g.group_id+'" title="Click to change status"><i></i>'+(g.is_active?'True':'False')+'</button></td>'
+    +'<td class="d">'+fmt(g.created_at)+'</td><td class="d">'+fmt(g.updated_at)+'</td>'
+    +'<td><div class="act"><button data-a="edit" data-id="'+g.group_id+'">Edit</button><button class="del" data-a="del" data-id="'+g.group_id+'">Delete</button></div></td></tr>';
+  }).join("");
+  $("empty").hidden=list.length>0;
+  var act=groups.filter(function(g){return g.is_active}).length;
+  $("stats").innerHTML='<div class="stat"><b>'+groups.length+'</b><span>Total groups</span></div><div class="stat"><b>'+act+'</b><span>Active</span></div><div class="stat"><b>'+(groups.length-act)+'</b><span>Inactive</span></div>';
+}
+function resetForm(){editId=null;$("name").value="";$("active").checked=true;$("save").textContent="Add group";$("formTitle").textContent="Add a group";$("cancel").hidden=true;$("err").textContent="";}
+function find(id){return groups.filter(function(g){return g.group_id===id})[0]}
+
+$("f").addEventListener("submit",function(e){
+  e.preventDefault();
+  var name=$("name").value.trim(), err=$("err");
+  if(!name){err.textContent="Enter a group name.";return;}
+  if(name.length>255){err.textContent="Group name must be 255 characters or fewer.";return;}
+  var dup=groups.some(function(g){return g.group_name.toLowerCase()===name.toLowerCase()&&g.group_id!==editId});
+  if(dup){err.textContent='A group named "'+name+'" already exists. Group names must be unique.';return;}
+  var now=Date.now();
+  if(editId){var g=find(editId);g.group_name=name;g.is_active=$("active").checked;g.updated_at=now;flashId=g.group_id;}
+  else{groups.push({group_id:nextId,group_name:name,is_active:$("active").checked,created_at:now,updated_at:now});flashId=nextId;nextId++;}
+  persist();resetForm();render();
+});
+$("cancel").addEventListener("click",resetForm);
+$("q").addEventListener("input",render);
+$("flt").addEventListener("change",render);
+$("rows").addEventListener("click",function(e){
+  var b=e.target.closest("button[data-a]");if(!b)return;
+  var id=+b.getAttribute("data-id"),g=find(id),a=b.getAttribute("data-a");
+  if(a==="toggle"){g.is_active=!g.is_active;g.updated_at=Date.now();flashId=id;persist();render();}
+  else if(a==="edit"){editId=id;$("name").value=g.group_name;$("active").checked=g.is_active;$("save").textContent="Save changes";$("formTitle").textContent="Edit group #"+id;$("cancel").hidden=false;$("err").textContent="";$("name").focus();window.scrollTo({top:0,behavior:"smooth"});}
+  else if(a==="del"){if(confirm('Delete group "'+g.group_name+'"?')){groups=groups.filter(function(x){return x.group_id!==id});if(editId===id)resetForm();persist();render();}}
+});
+load();render();
+})();
+</script>
+</body>
+</html>
